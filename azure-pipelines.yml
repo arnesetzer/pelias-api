@@ -19,7 +19,9 @@ variables:
   PELIA_QUERY_REPO: "https://ivv-devops.ivv.gruppe/T7.Software/Radroutenplaner_NRW/_git/Pelias-Query"
 
 pool:
-  vmImage: "ubuntu-latest"
+  # Use the Azure DevOps default agent pool. Change to `vmImage: 'ubuntu-latest'`
+  # if you prefer to run on Microsoft-hosted Ubuntu images.
+  name: Default
 
 steps:
   - checkout: self
