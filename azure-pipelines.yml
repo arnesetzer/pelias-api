@@ -1,0 +1,59 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  # Image name (without registry). Override in pipeline variables if you want a different name.
+  imageName: "pelias-api"
+  # Set this to an Azure DevOps service connection that provides access to your container registry.
+  # Example: 'my-acr-connection' (create in Project Settings -> Service connections)
+  dockerRegistryServiceConnection: ""
+  # Optional: docker registry hostname (e.g. myregistry.azurecr.io). If empty, the repository will be the imageName only.
+  dockerRegistry: ""
+  # Optional: repository name built from registry + imageName
+  imageRepository: "$(dockerRegistry)/$(imageName)"
+  # Image tag to use
+  tag: "$(Build.BuildId)"
+  # Optional: URL to clone pelias-query from (set to your repo)
+  PELIA_QUERY_REPO: "https://ivv-devops.ivv.gruppe/T7.Software/Radroutenplaner_NRW/_git/Pelias-Query"
+
+pool:
+  vmImage: "ubuntu-latest"
+
+steps:
+  - checkout: self
+    persistCredentials: "true"
+    fetchDepth: "0"
+
+  - script: |
+      echo "Checking for pelias-query directory..."
+      if [ -d "$(Build.SourcesDirectory)/pelias-query/.git" ]; then
+        echo "pelias-query already present as a nested repo"
+      else
+        if [ -n "$PELIA_QUERY_REPO" ]; then
+          echo "Cloning pelias-query from $PELIA_QUERY_REPO"
+          git -c http.sslVerify=false clone "$PELIA_QUERY_REPO" pelias-query
+        else
+          echo "PELIA_QUERY_REPO not set. Skipping pelias-query clone."
+        fi
+      fi
+    displayName: "Ensure pelias-query present (optional)"
+
+    # Note: The Docker task requires a configured service connection when pushing to a registry.
+    # Set the pipeline variable `dockerRegistryServiceConnection` to your connection name.
+
+  - script: |
+      echo "Building Docker image $(imageName):$(tag)"
+      docker build -t $(imageName):$(tag) -f $(Build.SourcesDirectory)/Dockerfile $(Build.SourcesDirectory)
+      mkdir -p $(Build.ArtifactStagingDirectory)
+      echo "Saving image to $(Build.ArtifactStagingDirectory)/$(imageName)-$(tag).tar"
+      docker save $(imageName):$(tag) -o $(Build.ArtifactStagingDirectory)/$(imageName)-$(tag).tar
+    displayName: "Build Docker image and save as tar"
+
+  - task: PublishPipelineArtifact@1
+    displayName: "Publish Docker image artifact"
+    inputs:
+      targetPath: "$(Build.ArtifactStagingDirectory)"
+      artifact: "docker-image"
+      publishLocation: "pipeline"
