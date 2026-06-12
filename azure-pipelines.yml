@@ -19,7 +19,7 @@ variables:
   PELIA_QUERY_REPO: "https://ivv-devops.ivv.gruppe/T7.Software/Radroutenplaner_NRW/_git/Pelias-Query"
 
 pool:
-  name: default
+  name: Default
 
 steps:
   - checkout: self
